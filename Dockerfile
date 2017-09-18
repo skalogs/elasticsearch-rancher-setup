@@ -12,4 +12,4 @@ ENV SERVICE_ELASTICSEARCH_PASSWORD ""
 
 ADD startup.sh /usr/bin/startup.sh
 
-CMD /usr/bin/startup.sh
+CMD ["/usr/bin/startup.sh"]
