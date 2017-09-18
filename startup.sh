@@ -30,6 +30,8 @@ function retryHttp {
 
 checkElasticsearch
 
+mkdir /elasticsearch
+
 #get dynamic templates
 response=$(curl --write-out %{http_code} --silent --output /dev/null http://${RANCHER_BASEURL}/self/service/metadata/template)
 if [ "$response" -eq 200 ]
@@ -44,18 +46,27 @@ then
     done
 fi
 
-if [ "${CONFIGURE_REPOSITORY}" = "true" ]
+#configure repositories
+response=$(curl --write-out %{http_code} --silent --output /dev/null http://${RANCHER_BASEURL}/self/service/metadata/repositories)
+if [ "$response" -eq 200 ]
 then
-    response=$(curl --write-out %{http_code} --silent --output /dev/null http://${RANCHER_BASEURL}/self/service/metadata/repositories)
-    if [ "$response" -eq 200 ]
-    then
-        mkdir -p /elasticsearch/repositories
-        for repository in `curl http://${RANCHER_BASEURL}/self/service/metadata/repositories` ; do
-          repositoryName=`basename ${repository}`
-          echo Get repository $repositoryName from rancher-compose
-          curl http://${RANCHER_BASEURL}/self/service/metadata/repositories/$repositoryName > /elasticsearch/repositories/$repositoryName.json
-          echo Posting repository $repositoryName config
-          retryHttp "curl -XPUT ${ES_URL}/_snapshot/${repositoryName}?pretty --write-out %{http_code} --output /dev/null -d @/elasticsearch/repositories/$repositoryName.json"
-        done
-    fi
+    mkdir -p /elasticsearch/repositories
+    for repository in `curl http://${RANCHER_BASEURL}/self/service/metadata/repositories` ; do
+      repositoryName=`basename ${repository}`
+      echo Get repository $repositoryName from rancher-compose
+      curl http://${RANCHER_BASEURL}/self/service/metadata/repositories/$repositoryName > /elasticsearch/repositories/$repositoryName.json
+      echo Posting repository $repositoryName config
+      retryHttp "curl -XPUT ${ES_URL}/_snapshot/${repositoryName}?pretty --write-out %{http_code} --output /dev/null -d @/elasticsearch/repositories/$repositoryName.json"
+    done
+fi
+
+#apply license
+response=$(curl --write-out %{http_code} --silent --output /dev/null http://${RANCHER_BASEURL}/self/service/metadata/license)
+if [ "$response" -eq 200 ]
+then
+    echo Get license
+    curl http://${RANCHER_BASEURL}/self/service/metadata/license > /elasticsearch/license.json
+
+    echo Posting license
+    retryHttp "curl -XPUT ${ES_URL}/_xpack/license?acknowledge=true --write-out %{http_code} --output /dev/null -d @/elasticsearch/license.json"
 fi
