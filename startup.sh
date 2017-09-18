@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -x
 
-RANCHER_BASEURL=http://rancher-metadata.rancher.internal/latest
+RANCHER_BASEURL=rancher-metadata.rancher.internal/latest
 
 if [ -z "${SERVICE_ELASTICSEARCH_USERNAME}"]; then
   ES_AUTH=""
