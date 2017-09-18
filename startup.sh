@@ -42,7 +42,7 @@ then
         echo Get index template $templateName from rancher-compose
         curl http://${RANCHER_BASEURL}/self/service/metadata/template/$templateName > /elasticsearch/templates/$templateName.json
         echo Posting index template $templateName
-        retryHttp "curl -XPUT ${ES_URL}/_template/$templateName --write-out %{http_code} --output /dev/null -d @/elasticsearch/templates/$templateName"
+        retryHttp "curl -XPUT ${ES_URL}/_template/$templateName --write-out %{http_code} --output /dev/null -d @/elasticsearch/templates/$templateName.json"
     done
 fi
 
