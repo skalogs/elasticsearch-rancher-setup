@@ -33,16 +33,19 @@ checkElasticsearch
 mkdir /elasticsearch
 
 #get dynamic templates
-response=$(curl --write-out %{http_code} --silent --output /dev/null http://${RANCHER_BASEURL}/self/service/metadata/template)
+response=$(curl --write-out %{http_code} --silent --output /dev/null http://${RANCHER_BASEURL}/self/service/metadata/templates)
 if [ "$response" -eq 200 ]
 then
-    mkdir -p /elasticsearch/templates
-    for template in `curl http://${RANCHER_BASEURL}/self/service/metadata/template` ; do
-        templateName=`basename ${template}`
-        echo Get index template $templateName from rancher-compose
-        curl http://${RANCHER_BASEURL}/self/service/metadata/template/$templateName > /elasticsearch/templates/$templateName.json
+    curl http://${RANCHER_BASEURL}/self/service/metadata/templates > /elasticsearch/templates.json
+    jq -rc '.[]' /elasticsearch/templates.json | while IFS='' read templateConfig ; do
+      templateName=$(echo $templateConfig | jq .name)
+      template=$(echo $templateConfig | jq .value)
+      if [ "$templateName" = "null"] && [ "$template" = "null"]; then
+        echo "templateName or template is null, ignoring this entry..."
+      else
         echo Posting index template $templateName
-        retryHttp "curl -XPUT ${ES_URL}/_template/$templateName --write-out %{http_code} --output /dev/null -d @/elasticsearch/templates/$templateName.json"
+        retryHttp "curl -XPUT ${ES_URL}/_template/$templateName --write-out %{http_code} --output /dev/null -d \"${template}\""
+      fi
     done
 fi
 
@@ -50,13 +53,16 @@ fi
 response=$(curl --write-out %{http_code} --silent --output /dev/null http://${RANCHER_BASEURL}/self/service/metadata/repositories)
 if [ "$response" -eq 200 ]
 then
-    mkdir -p /elasticsearch/repositories
-    for repository in `curl http://${RANCHER_BASEURL}/self/service/metadata/repositories` ; do
-      repositoryName=`basename ${repository}`
-      echo Get repository $repositoryName from rancher-compose
-      curl http://${RANCHER_BASEURL}/self/service/metadata/repositories/$repositoryName > /elasticsearch/repositories/$repositoryName.json
-      echo Posting repository $repositoryName config
-      retryHttp "curl -XPUT ${ES_URL}/_snapshot/${repositoryName}?pretty --write-out %{http_code} --output /dev/null -d @/elasticsearch/repositories/$repositoryName.json"
+    curl http://${RANCHER_BASEURL}/self/service/metadata/repositories > /elasticsearch/repositories.json
+    jq -rc '.[]' /elasticsearch/repositories.json | while IFS='' read repositoryConfig ; do
+      repositoryName=$(echo $repositoryConfig | jq .name)
+      repository=$(echo $repositoryConfig | jq .value)
+      if [ "$repositoryName" = "null"] && [ "$repository" = "null"]; then
+        echo "repositoryName or repository is null, ignoring this entry..."
+      else
+        echo Posting repository $repositoryName config
+        retryHttp "curl -XPUT ${ES_URL}/_snapshot/${repositoryName}?pretty --write-out %{http_code} --output /dev/null -d \"${repository}\""
+      fi
     done
 fi
 
