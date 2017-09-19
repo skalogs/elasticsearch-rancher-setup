@@ -37,14 +37,16 @@ response=$(curl --write-out %{http_code} --silent --output /dev/null http://${RA
 if [ "$response" -eq 200 ]
 then
     curl http://${RANCHER_BASEURL}/self/service/metadata/templates > /elasticsearch/templates.json
+    mkdir -p /elasticsearch/templates
     jq -rc '.[]' /elasticsearch/templates.json | while IFS='' read templateConfig ; do
-      templateName=$(echo $templateConfig | jq .name)
+      templateName=$(echo $templateConfig | jq -r .name)
       template=$(echo $templateConfig | jq .value)
       if [ "$templateName" = "null"] && [ "$template" = "null"]; then
         echo "templateName or template is null, ignoring this entry..."
       else
         echo Posting index template $templateName
-        retryHttp "curl -XPUT ${ES_URL}/_template/$templateName --write-out %{http_code} --output /dev/null -d \"${template}\""
+        echo $template > /elasticsearch/templates/$templateName.json
+        retryHttp "curl -XPUT ${ES_URL}/_template/$templateName --write-out %{http_code} --output /dev/null -d @/elasticsearch/templates/${templateName}.json"
       fi
     done
 fi
@@ -54,14 +56,16 @@ response=$(curl --write-out %{http_code} --silent --output /dev/null http://${RA
 if [ "$response" -eq 200 ]
 then
     curl http://${RANCHER_BASEURL}/self/service/metadata/repositories > /elasticsearch/repositories.json
+    mkdir -p /elasticsearch/repositories
     jq -rc '.[]' /elasticsearch/repositories.json | while IFS='' read repositoryConfig ; do
-      repositoryName=$(echo $repositoryConfig | jq .name)
+      repositoryName=$(echo $repositoryConfig | jq -r .name)
       repository=$(echo $repositoryConfig | jq .value)
       if [ "$repositoryName" = "null"] && [ "$repository" = "null"]; then
         echo "repositoryName or repository is null, ignoring this entry..."
       else
         echo Posting repository $repositoryName config
-        retryHttp "curl -XPUT ${ES_URL}/_snapshot/${repositoryName}?pretty --write-out %{http_code} --output /dev/null -d \"${repository}\""
+        echo $repository > /elasticsearch/templates/$repositoryName.json
+        retryHttp "curl -XPUT ${ES_URL}/_snapshot/${repositoryName}?pretty --write-out %{http_code} --output /dev/null -d @/elasticsearch/templates/${repositoryName}.json"
       fi
     done
 fi
