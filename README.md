@@ -13,12 +13,7 @@ The content of elasticsearch templates and repository configuration rely on a cu
 [
   {
     "name": "mytemplate",
-    "value": {
-                "template": "te*",
-                "settings": {
-                  "number_of_shards": 1
-                }
-              }
+    "value": #Paste your template or repository config here
   }
 ]
 ```
