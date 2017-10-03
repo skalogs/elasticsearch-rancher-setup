@@ -11,19 +11,23 @@ fi
 ES_URL=http://${ES_AUTH}${SERVICE_ELASTICSEARCH_HOST}:${SERVICE_ELASTICSEARCH_PORT}
 
 function checkElasticsearch {
-    a="`curl -XGET ${ES_URL}/_cluster/health &> /dev/null; echo $?`"
+    a="`curl ${ES_URL}/_cluster/health &> /dev/null; echo $?`"
     while  [ $a -ne 0 ];
     do
-        a="`curl -XGET ${ES_URL}/_cluster/health &> /dev/null; echo $?`"
+        a="`curl ${ES_URL}/_cluster/health &> /dev/null; echo $?`"
         sleep 1
     done
 }
 
 function retryHttp {
-    status=$($1)
-    while  [ $status -ne 200 ];
+    httpWord=$1
+    url=$2
+    content=$3
+    curlCommand="curl -X${httpWord} ${url} --compressed -H 'Content-Type: application/json;charset=UTF-8' --write-out %{http_code} --output /dev/null -d @${content}"
+    status=$(curlCommand)
+    while  [ $status -ne 200 ] ;
     do
-        status=$($1)
+        status=$(curlCommand)
         sleep 1
     done
 }
@@ -38,15 +42,15 @@ if [ "$response" -eq 200 ]
 then
     curl http://${RANCHER_BASEURL}/self/service/metadata/templates > /elasticsearch/templates.json
     mkdir -p /elasticsearch/templates
-    jq -rc '.[]' /elasticsearch/templates.json | while IFS='' read templateConfig ; do
-      templateName=$(echo $templateConfig | jq -r .name)
-      template=$(echo $templateConfig | jq .value)
-      if [ "$templateName" = "null"] && [ "$template" = "null"]; then
+    jq -rc '.[]' /elasticsearch/templates.json | while IFS='' read objectConfig ; do
+      name=$(echo $objectConfig | jq -r .name)
+      config=$(echo $objectConfig | jq .value)
+      if [ "$name" = "null"] && [ "$config" = "null"]; then
         echo "templateName or template is null, ignoring this entry..."
       else
-        echo Posting index template $templateName
-        echo $template > /elasticsearch/templates/$templateName.json
-        retryHttp "curl -XPUT ${ES_URL}/_template/$templateName --write-out %{http_code} --output /dev/null -d @/elasticsearch/templates/${templateName}.json"
+        echo Posting index template $name
+        echo $config > /elasticsearch/templates/$name.json
+        retryHttp PUT "${ES_URL}/_template/$name" /elasticsearch/templates/${name}.json
       fi
     done
 fi
@@ -57,15 +61,15 @@ if [ "$response" -eq 200 ]
 then
     curl http://${RANCHER_BASEURL}/self/service/metadata/repositories > /elasticsearch/repositories.json
     mkdir -p /elasticsearch/repositories
-    jq -rc '.[]' /elasticsearch/repositories.json | while IFS='' read repositoryConfig ; do
-      repositoryName=$(echo $repositoryConfig | jq -r .name)
-      repository=$(echo $repositoryConfig | jq .value)
-      if [ "$repositoryName" = "null"] && [ "$repository" = "null"]; then
+    jq -rc '.[]' /elasticsearch/repositories.json | while IFS='' read objectConfig ; do
+      name=$(echo $objectConfig | jq -r .name)
+      config=$(echo $objectConfig | jq .value)
+      if [ "$name" = "null"] && [ "$config" = "null"]; then
         echo "repositoryName or repository is null, ignoring this entry..."
       else
-        echo Posting repository $repositoryName config
-        echo $repository > /elasticsearch/templates/$repositoryName.json
-        retryHttp "curl -XPUT ${ES_URL}/_snapshot/${repositoryName}?pretty --write-out %{http_code} --output /dev/null -d @/elasticsearch/templates/${repositoryName}.json"
+        echo Posting repository $name config
+        echo $config > /elasticsearch/templates/$name.json
+        retryHttp PUT "${ES_URL}/_snapshot/${name}?pretty" /elasticsearch/templates/${name}.json
       fi
     done
 fi
@@ -78,5 +82,5 @@ then
     curl http://${RANCHER_BASEURL}/self/service/metadata/license > /elasticsearch/license.json
 
     echo Posting license
-    retryHttp "curl -XPUT ${ES_URL}/_xpack/license?acknowledge=true --write-out %{http_code} --output /dev/null -d @/elasticsearch/license.json"
+    retryHttp PUT "${ES_URL}/_xpack/license?acknowledge=true" /elasticsearch/license.json
 fi
