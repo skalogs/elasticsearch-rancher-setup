@@ -24,10 +24,10 @@ function retryHttp {
     url=$2
     content=$3
     curlCommand="curl -X${httpWord} ${url} --compressed -H 'Content-Type: application/json;charset=UTF-8' --write-out %{http_code} --output /dev/null -d @${content}"
-    status=$(curlCommand)
+    status=$(eval $curlCommand)
     while  [ $status -ne 200 ] ;
     do
-        status=$(curlCommand)
+        status=$(eval $curlCommand)
         sleep 1
     done
 }
