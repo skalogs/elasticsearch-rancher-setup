@@ -42,14 +42,14 @@ if [ "$response" -eq 200 ]
 then
     curl http://${RANCHER_BASEURL}/self/service/metadata/templates > /elasticsearch/templates.json
     mkdir -p /elasticsearch/templates
-    jq -rc '.[]' /elasticsearch/templates.json | while IFS='' read objectConfig ; do
-      name=$(echo $objectConfig | jq -r .name)
-      config=$(echo $objectConfig | jq .value)
+    jq -rc '.[]' /elasticsearch/templates.json | while IFS='' read -r objectConfig ; do
+      name=$(echo "$objectConfig" | jq -r .name)
+      config=$(echo "$objectConfig" | jq -r .value)
       if [ "$name" = "null"] && [ "$config" = "null"]; then
         echo "templateName or template is null, ignoring this entry..."
       else
         echo Posting index template $name
-        echo $config > /elasticsearch/templates/$name.json
+        echo "$config" > /elasticsearch/templates/$name.json
         retryHttp PUT "${ES_URL}/_template/$name" /elasticsearch/templates/${name}.json
       fi
     done
@@ -61,14 +61,14 @@ if [ "$response" -eq 200 ]
 then
     curl http://${RANCHER_BASEURL}/self/service/metadata/repositories > /elasticsearch/repositories.json
     mkdir -p /elasticsearch/repositories
-    jq -rc '.[]' /elasticsearch/repositories.json | while IFS='' read objectConfig ; do
-      name=$(echo $objectConfig | jq -r .name)
-      config=$(echo $objectConfig | jq .value)
+    jq -rc '.[]' /elasticsearch/repositories.json | while IFS='' read -r objectConfig ; do
+      name=$(echo "$objectConfig" | jq -r .name)
+      config=$(echo "$objectConfig" | jq -r .value)
       if [ "$name" = "null"] && [ "$config" = "null"]; then
         echo "repositoryName or repository is null, ignoring this entry..."
       else
         echo Posting repository $name config
-        echo $config > /elasticsearch/templates/$name.json
+        echo "$config" > /elasticsearch/templates/$name.json
         retryHttp PUT "${ES_URL}/_snapshot/${name}?pretty" /elasticsearch/templates/${name}.json
       fi
     done
